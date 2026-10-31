@@ -382,6 +382,9 @@ func (h *Handler) Start() error {
 func (h *Handler) Close() error {
 	common.Close(h.mux)
 	common.Close(h.proxy)
+	if h.streamSettings != nil && internet.ReleaseStreamSettings != nil {
+		internet.ReleaseStreamSettings(h.streamSettings)
+	}
 	return nil
 }
 
