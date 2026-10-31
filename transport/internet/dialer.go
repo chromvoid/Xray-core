@@ -35,6 +35,9 @@ type dialFunc func(ctx context.Context, dest net.Destination, streamSettings *Me
 
 var transportDialerCache = make(map[string]dialFunc)
 
+// CloseXHTTPDialers is installed by splithttp to release an instance's cached clients.
+var CloseXHTTPDialers func(context.Context)
+
 // RegisterTransportDialer registers a Dialer with given name.
 func RegisterTransportDialer(protocol string, dialer dialFunc) error {
 	if _, found := transportDialerCache[protocol]; found {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"reflect"
 	"sync"
+	"sync/atomic"
 
 	"github.com/xtls/xray-core/common"
 	"github.com/xtls/xray-core/common/errors"
@@ -85,6 +86,7 @@ type Instance struct {
 	pendingResolutions         []resolution
 	pendingOptionalResolutions []resolution
 	running                    bool
+	closed                     atomic.Bool
 	resolveLock                sync.Mutex
 
 	ctx context.Context
@@ -93,6 +95,11 @@ type Instance struct {
 // Instance state
 func (server *Instance) IsRunning() bool {
 	return server.running
+}
+
+// IsClosed reports whether shutdown has begun.
+func (s *Instance) IsClosed() bool {
+	return s.closed.Load()
 }
 
 func AddInboundHandler(server *Instance, config *InboundHandlerConfig) error {
@@ -260,12 +267,16 @@ func (s *Instance) Close() error {
 	defer s.statusLock.Unlock()
 
 	s.running = false
+	s.closed.Store(true)
 
 	var errs []interface{}
 	for _, f := range s.features {
 		if err := f.Close(); err != nil {
 			errs = append(errs, err)
 		}
+	}
+	if internet.CloseXHTTPDialers != nil {
+		internet.CloseXHTTPDialers(toContext(s.ctx, s))
 	}
 	if len(errs) > 0 {
 		return errors.New("failed to close all features").Base(errors.New(serial.Concat(errs...)))
